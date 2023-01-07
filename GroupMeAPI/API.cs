@@ -166,6 +166,15 @@ namespace GroupMeAPI
 			);
 		}
 
+		public static Message GetMessageProceeding(Message[] messages, Message targetMessage)
+		{
+			return messages.Where(m => m.created_at > targetMessage.created_at).MinBy(m => m.created_at);
+		}
+		public static Message GetMessagePreceeding(Message[] messages, Message targetMessage)
+		{
+			return messages.Where(m => m.created_at < targetMessage.created_at).MaxBy(m => m.created_at);
+		}
+
 		/// <summary>
 		/// Uses the provided generator to build an array of <see cref="Message"/>s
 		/// </summary>
