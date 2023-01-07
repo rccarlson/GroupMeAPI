@@ -41,6 +41,7 @@ namespace GroupMeAPI
 			Console.WriteLine($"System Messages: {systemMessages.Length}");
 			Console.WriteLine($"Polls: {pollMessages.Length}");
 			Console.WriteLine($"Platforms: "+string.Join(", ", allMessages.Select(m=>$"'{m.platform}'").Distinct()));
+			Console.WriteLine($"Deleted messages: {allMessages.Count(m => m.@event.data.deleter_id is not null)}");
 			Console.WriteLine();
 
 			LeaderboardByUser("Top posters", group, allMessages, (user, messages) => messages.Count(m => m.sender_id == user.user_id), 10);
