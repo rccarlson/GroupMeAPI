@@ -175,6 +175,7 @@ namespace GroupMeAPI
 		public string id;
 	}
 	[Serializable]
+	[DebuggerDisplay("{id,nq}: {nickname}")]
 	public struct UserEvent
 	{
 		public long id;
