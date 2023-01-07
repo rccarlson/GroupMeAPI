@@ -118,6 +118,61 @@ namespace GroupMeAPI
 		public UserEvent[] added_users;
 		/// <summary> User who invited the new users </summary>
 		public UserEvent adder_user;
+		
+		// calendar.event.created
+		public CalendarEvent @event;
+		public string url;
+		public UserEvent user;
+
+		// calendar.event.starting
+		public string event_name, minutes;
+
+		// calendar.event.updated
+		public string[] updated_fields;
+
+		// group.avatar_change
+		public string avatar_url;
+
+		// group.like_icon_set
+		public Icon like_icon;
+
+		// group.name_change
+		public string name;
+
+		// group.owner_changed
+		public UserEvent old_owner, new_owner;
+
+		// group.role_change_admin
+		public string role;
+		public UserEvent member;
+
+		// group.theme_change
+		public string theme_name;
+
+		// group.topic_change
+		public string topic;
+
+		// message.deleted
+		public string message_id;
+		public long? deleted_id;
+		public string deletion_actor, deleter_id;
+
+		// poll.created
+		public PollEvent poll;
+		public ConversationEvent conversation;
+
+		// poll.finished
+		public PollOption[] options;
+	}
+	[Serializable]
+	public struct CalendarEvent
+	{
+		public string id, name;
+	}
+	[Serializable]
+	public struct ConversationEvent
+	{
+		public string id;
 	}
 	[Serializable]
 	public struct UserEvent
@@ -142,6 +197,11 @@ namespace GroupMeAPI
 		public string name;
 	}
 
+	[Serializable]
+	public struct PollEvent {
+		public long expiration;
+		public string id, subject;
+	}
 	[Serializable]
 	internal struct PollCollectionResponse
 	{
