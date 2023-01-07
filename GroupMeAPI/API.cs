@@ -41,7 +41,7 @@ namespace GroupMeAPI
 			int page = 1;
 			do
 			{
-				lastBatch = GetGroups(page, 10);
+				lastBatch = GetGroups(page, 100);
 				groups.AddRange(lastBatch);
 				page++;
 			} while (lastBatch.Length > 0);
