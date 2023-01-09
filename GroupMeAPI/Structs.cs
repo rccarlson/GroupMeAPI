@@ -41,7 +41,7 @@ namespace GroupMeAPI
 		public int children_count;
 		public string share_url, share_qr_code_url;
 		// public string[] directories;
-		public User[] members;
+		public GroupMember[] members;
 		public int members_count;
 		// locations, visibility, category_ids
 	}
@@ -70,6 +70,8 @@ namespace GroupMeAPI
 		public bool IsPoll => !string.IsNullOrWhiteSpace(poll_id);
 		public string user_id, reply_id, base_reply_id; // reply
 		public bool IsReply => !string.IsNullOrWhiteSpace(reply_id);
+		public string[] user_ids;
+		public bool IsMention => type is "mentions" && user_ids.Any(id => !string.IsNullOrWhiteSpace(id));
 	}
 
 	[Serializable]
@@ -190,7 +192,7 @@ namespace GroupMeAPI
 	}
 
 	[DebuggerDisplay("{name,nq} (\"{nickname,nq}\")")]
-	public struct User
+	public struct GroupMember
 	{
 		public string user_id, nickname, image_url, id;
 		public bool muted, autokicked;

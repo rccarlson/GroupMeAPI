@@ -196,6 +196,7 @@ namespace GroupMeAPI
 			return messages.ToArray();
 		}
 
+		#region FILE IO
 		static readonly System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter = new();
 		public static Message[] GetMessagesFromFile(string file)
 		{
@@ -245,5 +246,6 @@ namespace GroupMeAPI
 
 			return allMessages;
 		}
+		#endregion FILE IO
 	}
 }
