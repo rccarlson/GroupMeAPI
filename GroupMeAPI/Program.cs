@@ -26,27 +26,8 @@ namespace GroupMeAPI
 				.Select(m=>(m.@event.type, m.@event, API.GetMessageProceeding(allMessages, m).id))
 				.ToList();
 
-			var parallelisms = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-			var testsPerParallelism = 4;
-			Dictionary<int, List<TimeSpan>> results = new();
-			foreach(var test in parallelisms)
-			{
-				results[test] = new();
-				for(int i=0;i<testsPerParallelism;i++)
-				{
-					var sw = Stopwatch.StartNew();
-					PrintStats(group, allMessages, test);
-					sw.Stop();
-					results[test].Add(sw.Elapsed);
-				}
-			}
-			foreach(var (k,v) in results)
-			{
-				foreach(var value in v)
-				{
-					Console.WriteLine($"{k}\t{value.TotalMilliseconds}");
-				}
-			}
+			PrintStats(group, allMessages, 6);
+
 		}
 
 		static void PrintStats(Group group, Message[] messages, int parallelism)
@@ -55,7 +36,7 @@ namespace GroupMeAPI
 			PrintParallel(
 				new Func<string>[]
 				{
-					()=>WriteTable("User IDs", group.members.OrderBy(m=>m.name).Select(member => new string[] { member.name, member.user_id })),
+					()=>WriteTable("User IDs", group.members.OrderBy(m=>m.name).Select(member => new string[] { member.nickname, member.name, member.user_id })),
 					()=>$"--TOTALS--",
 					()=>$"All messages: {messages.Length}",
 					()=>$"System Messages: {messages.Where(msg => msg.system).Count()}",

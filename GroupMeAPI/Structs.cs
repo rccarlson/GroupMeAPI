@@ -77,24 +77,26 @@ namespace GroupMeAPI
 	}
 
 	[Serializable]
-	[DebuggerDisplay("{DebugDisplay,nq}")]
 	public struct Message
 	{
-		private string DebugDisplay
+		public override string ToString()
 		{
-			get
+			// special case for image with no text
+			if (attachments.Length == 1 && attachments.First().IsImage && string.IsNullOrWhiteSpace(text))
+				return $"{APIUtils.DateToString(CreatedAt)} {name}: {attachments.First().url}";
+
+			StringBuilder sb = new();
+			sb.Append(APIUtils.DateToString(CreatedAt))
+				.Append(" ")
+				.Append(name)
+				.Append(": ");
+			if (attachments.Any())
 			{
-				StringBuilder sb = new();
-				sb.Append(APIUtils.DateToString(CreatedAt));
-				sb.Append(" ");
-				sb.Append(name)
-					.Append(": ");
-				if (attachments.Any())
-					sb.Append("[Attachment]");
-				if (text is not null)
-					sb.Append(text);
-				return sb.ToString().Trim();
+				sb.Append("[Attachment]");
 			}
+			if (text is not null)
+				sb.Append(text);
+			return sb.ToString().Trim();
 		}
 		public MessageAttachment[] attachments;
 		public string avatar_url;
