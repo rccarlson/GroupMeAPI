@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Text;
 
 namespace GroupMeAPI
 {
@@ -15,11 +16,6 @@ namespace GroupMeAPI
 			var mostRecentGroup = api.GetGroups().First().group_id;
 
 			var allMessages = api.UpdateFile($"{mostRecentGroup}{Extension}", mostRecentGroup);
-			var totalMessages = api.GetGroup(mostRecentGroup).messages.count;
-			if (allMessages.Length != totalMessages + 8)
-				Console.WriteLine($"{totalMessages - allMessages.Length} MISSING MESSAGES!!");
-			else
-				Console.WriteLine("All messages accounted for");
 			var group = api.GetGroup(mostRecentGroup);
 
 			var distinctEventTypes = allMessages
@@ -30,59 +26,84 @@ namespace GroupMeAPI
 				.Select(m=>(m.@event.type, m.@event, API.GetMessageProceeding(allMessages, m).id))
 				.ToList();
 
-			Console.WriteLine($"--TOTALS--");
-			Console.WriteLine($"All messages: {allMessages.Length}");
-			Console.WriteLine($"System Messages: {allMessages.Where(msg => msg.system).Count()}");
-			Console.WriteLine($"Polls: {allMessages.Where(m => m.attachments.Any(attachment => attachment.type == "poll")).Count()}");
-			Console.WriteLine($"Platforms: "+string.Join(", ", allMessages.Select(m=>$"'{m.platform}'").Distinct()));
-			Console.WriteLine($"Deleted messages: {allMessages.Count(m => m.@event.data.deleter_id is not null)}");
-			Console.WriteLine();
-
-			LeaderboardByUser("Top posters", group, allMessages, (user, messages) => messages.Count(m => m.sender_id == user.user_id));
-			LeaderboardByUser("Most likes received", group, allMessages, (user, messages) =>
-				messages.Where(m => m.sender_id == user.user_id).Sum(m => m.favorited_by.Length)
-				);
-			LeaderboardByUser("Most likes given", group, allMessages, (user, messages) =>
-				messages.Count(m => m.favorited_by.Contains(user.user_id)));
-			LeaderboardByUser("Likes received/given ratio", group, allMessages,
-				(user, messages) => {
-					float received = messages.Where(m => m.sender_id == user.user_id).Sum(m => m.favorited_by.Length);
-					float given = messages.Count(m => m.favorited_by.Contains(user.user_id)); // likes given
-					if (given == 0) return received;
-					else return MathF.Round(received / given, 3);
+			var parallelisms = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+			var testsPerParallelism = 4;
+			Dictionary<int, List<TimeSpan>> results = new();
+			foreach(var test in parallelisms)
+			{
+				results[test] = new();
+				for(int i=0;i<testsPerParallelism;i++)
+				{
+					var sw = Stopwatch.StartNew();
+					PrintStats(group, allMessages, test);
+					sw.Stop();
+					results[test].Add(sw.Elapsed);
 				}
-				);
-			LeaderboardByUser("Average likes received per message", group, allMessages,
-			 (user, messages) => {
-				 var sentByUser = messages.Where(m => m.sender_id == user.user_id).ToArray();
-				 float likesReceived = sentByUser.Sum(m => m.favorited_by.Length);
-				 return MathF.Round(likesReceived/sentByUser.Length,3);
-				 }
-			 );
-			LeaderboardByUser("Longest inactive", group, allMessages, (user, messages) =>
-				(int)SafeMin(messages.Where(m => RepresentsActivity(user, m)), m => (DateTime.Now - m.CreatedAt).TotalDays)
-			);
-			LeaderboardByUser("Most mentioned", group, allMessages, (user, messages) =>
-				messages.Count(m => m.attachments.Any(a => a.type == "mentions" && a.user_ids.Contains(user.user_id)))
-			);
-			LeaderboardByUser("Most distinct usernames", group, allMessages, (user, messages) =>
-				messages
-				.Where(m=>m.@event.type == "membership.nickname_changed")
-				.Where(m=>m.@event.data.user.id.ToString() == user.user_id)
-				.Select(m=>m.@event.data.name)
-				.Distinct()
-				.Count()
-			);
+			}
+			foreach(var (k,v) in results)
+			{
+				foreach(var value in v)
+				{
+					Console.WriteLine($"{k}\t{value.TotalMilliseconds}");
+				}
+			}
+		}
 
-			var jackNames = allMessages
-				.Where(m => m.@event.type == "membership.nickname_changed")
-				.Where(m => m.@event.data.user.id == 13417292)
-				.Select(m => m.@event.data.name)
-				.Distinct();
-
-			var shawnInteractions = allMessages.Where(m => RepresentsActivity(group.members.First(m => m.name.Contains("Shawn")), m)).ToArray();
-
-			LeaderboardByMessage("Most liked messages", group, allMessages, m => m.favorited_by.Length, 20);
+		static void PrintStats(Group group, Message[] messages, int parallelism)
+		{
+			//int parallelism = 6; //new Random().Next(1, Environment.ProcessorCount);
+			PrintParallel(
+				new Func<string>[]
+				{
+					()=>WriteTable("User IDs", group.members.OrderBy(m=>m.name).Select(member => new string[] { member.name, member.user_id })),
+					()=>$"--TOTALS--",
+					()=>$"All messages: {messages.Length}",
+					()=>$"System Messages: {messages.Where(msg => msg.system).Count()}",
+					()=>$"Polls: {messages.Where(m => m.attachments.Any(attachment => attachment.type == "poll")).Count()}",
+					()=>$"Platforms: "+string.Join(", ", messages.Select(m=>$"'{m.platform}'").Distinct()),
+					()=>$"Deleted messages: {messages.Count(m => m.@event.data.deleter_id is not null)}",
+					()=>"",
+					()=>LeaderboardByUser("Top posters", group, messages, (user, messages) => messages.Count(m => m.sender_id == user.user_id), PadType.Left),
+					()=>LeaderboardByUser("Most likes received", group, messages, (user, messages) =>
+								messages.Where(m => m.sender_id == user.user_id).Sum(m => m.favorited_by.Length)
+							, PadType.Left),
+					()=>LeaderboardByUser("Most likes given", group, messages, (user, messages) =>
+								messages.Count(m => m.favorited_by.Contains(user.user_id))
+							, PadType.Left),
+					()=>LeaderboardByUser("Likes received/given ratio", group, messages, (user, messages) => {
+								float received = messages.Where(m => m.sender_id == user.user_id).Sum(m => m.favorited_by.Length);
+								float given = messages.Count(m => m.favorited_by.Contains(user.user_id)); // likes given
+								if (given == 0) return received;
+								else return MathF.Round(received / given, 3);
+							}, PadType.Right),
+					()=>LeaderboardByUser("Average likes received per message", group, messages, (user, messages) => {
+							 var sentByUser = messages.Where(m => m.sender_id == user.user_id).ToArray();
+							 float likesReceived = sentByUser.Sum(m => m.favorited_by.Length);
+							 return MathF.Round(likesReceived/sentByUser.Length,3);
+						 }, PadType.Right),
+					()=>LeaderboardByUser("Longest inactive", group, messages, (user, messages) =>
+								(int)SafeMin(messages.Where(m => RepresentsActivity(user, m)), m => (DateTime.Now - m.CreatedAt).TotalDays)
+							, PadType.Left),
+					()=>LeaderboardByUser("Most mentioned", group, messages, (user, messages) =>
+								messages.Count(m => m.attachments.Any(a => a.type == "mentions" && a.user_ids.Contains(user.user_id)))
+							, PadType.Left),
+					()=>LeaderboardByUser("Most distinct usernames", group, messages, (user, messages) =>
+								messages
+								.Where(m=>m.@event.type == "membership.nickname_changed")
+								.Where(m=>m.@event.data.user.id.ToString() == user.user_id)
+								.Select(m=>m.@event.data.name)
+								.Distinct()
+								.Count()
+							, PadType.Left),
+					()=>LeaderboardByUser("Created most polls", group, messages, (user, messages) =>
+								messages.Count(m=>m.attachments.Any(a=>a.IsPoll) && m.sender_id == user.user_id)
+							, PadType.Left),
+					()=>LeaderboardByUser("Responded to most polls", group, messages, (user, messages) =>
+								messages.Count(m=>m.@event.data.options?.Any(opt => opt.voter_ids?.Contains(user.user_id)??false)??false)
+							, PadType.Left),
+					()=>LeaderboardByMessage("Most liked messages", group, messages, m => m.favorited_by.Length, 20),
+				}
+				, parallelism);
 		}
 
 		/// <summary>
@@ -97,17 +118,27 @@ namespace GroupMeAPI
 			// todo: user rejoined
 			return false;
 		}
-		static void LeaderboardByUser<T>(string title, Group group, Message[] messages, Func<GroupMember, Message[], T> score, int leaderboardSize = 10)
+		static string LeaderboardByUser<T>(string title, Group group, Message[] messages, Func<GroupMember, Message[], T> score, PadType scorePadType, int leaderboardSize = 10)
 		{
-			var users = group.members;
-			var messagesByUser = users.Select(user => (user, messages: messages.Where(message => message.sender_id == user.user_id)));
-			var userAndScore = messagesByUser.Select(tuple => (tuple.user.name, score: score(tuple.user, messages)));
-			var leaderboard = userAndScore.OrderByDescending(pair => pair.score).Take(leaderboardSize);
-			WriteLeaderboard(title, leaderboard);
+			//var users = group.members;
+			//var messagesByUser = users.Select(user => (user, messages: messages.Where(message => message.sender_id == user.user_id)));
+			//var userAndScore = messagesByUser.Select(tuple => (tuple.user.name, score: score(tuple.user, messages)));
+			//var leaderboard = userAndScore.OrderByDescending(pair => pair.score).Take(leaderboardSize);
+			//return WriteLeaderboard(title, leaderboard);
 
+			return WriteTable(title,
+				group.members
+				.OrderByDescending(user => score(user, messages))
+				.Take(leaderboardSize)
+				.Select(user => new object[]
+				{
+					user.name,
+					score(user, messages)
+				}),
+				new[] { PadType.Left, scorePadType });
 		}
 
-		static void LeaderboardByMessage<T>(string title, Group group, Message[] messages, Func<Message, T> score, int leaderboardSize = 10)
+		static string LeaderboardByMessage<T>(string title, Group group, Message[] messages, Func<Message, T> score, int leaderboardSize = 10)
 		{
 			var leaderboard = messages
 				.OrderByDescending(m => score(m))
@@ -117,14 +148,14 @@ namespace GroupMeAPI
 				return new object[]
 				{
 					$"#{i+1}",
-					m.CreatedAt,
+					APIUtils.DateToString(m.CreatedAt),
 					string.IsNullOrWhiteSpace(sender.name) ? "<User not in group>" : sender.name,
 					score(m)?.ToString() ?? string.Empty,
 					m.text
 				};
 			});
 
-			WriteTable(title, tablated, new[] { PadType.Left, PadType.Left, PadType.Right, PadType.Left, PadType.Right });
+			return WriteTable(title, tablated, new[] { PadType.Left, PadType.Left, PadType.Right, PadType.Left, PadType.Right });
 		}
 
 		enum PadType { Left, Right }
@@ -132,8 +163,10 @@ namespace GroupMeAPI
 		/// Given an
 		/// </summary>
 		/// <param name="source">List of rows</param>
-		static void WriteTable<T>(string title, IEnumerable<IEnumerable<T>> source, IEnumerable<PadType> padTypes = null, int margin = 1, int maxWidth = 80)
+		static string WriteTable<T>(string title, IEnumerable<IEnumerable<T>> source, IEnumerable<PadType> padTypes = null, int margin = 1, int maxWidth = 80)
 		{
+			StringBuilder result = new();
+
 			// validate data completeness
 			if (source is null) throw new ArgumentNullException(nameof(source));
 			var numColumns = source.FirstOrDefault()?.Count() ?? 0;
@@ -154,7 +187,7 @@ namespace GroupMeAPI
 				colWidths[col] = columnMaxWidth > maxWidth ? maxWidth : columnMaxWidth;
 			}
 
-			Console.WriteLine($"---{title}---");
+			result.AppendLine($"---{title}---");
 
 			foreach(var row in arr)
 			{
@@ -177,18 +210,19 @@ namespace GroupMeAPI
 					rowOutput.Append(output);
 					rowOutput.Append(' ', margin);
 				}
-				Console.WriteLine(rowOutput);
+				result.AppendLine(rowOutput.ToString());
 			}
-
+			return result.ToString();
 		}
-		static void WriteLeaderboard<T>(string title, IEnumerable<(string, T)> leaderboard)
+		static string WriteLeaderboard<T>(string title, IEnumerable<(string, T)> leaderboard)
 		{
+			StringBuilder result = new();
 			var col1Width = leaderboard.Max(pair => pair.Item1.Length);
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 			var col2Width = leaderboard.Max(pair => pair.Item2?.ToString().Length ?? 0);
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 			Type[] padLeftTypes = new[] { typeof(int) };
-			Console.WriteLine($"---{title}---");
+			result.AppendLine($"---{title}---");
 			foreach (var (user, score) in leaderboard)
 			{
 				StringBuilder sb = new();
@@ -202,15 +236,18 @@ namespace GroupMeAPI
 				else
 					sb.Append(score.ToString().PadRight(col2Width));
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
-				Console.WriteLine(sb);
+				result.AppendLine(sb.ToString());
 			}
-			Console.WriteLine();
+			result.AppendLine();
+			return result.ToString();
 		}
-		static void WriteList(string title, IEnumerable<string> list)
+		static string WriteList(string title, IEnumerable<string> list)
 		{
-			Console.WriteLine($"---{title}---");
+			StringBuilder result = new();
+			result.AppendLine($"---{title}---");
 			foreach (var item in list)
-				Console.WriteLine(item);
+				result.AppendLine(item);
+			return result.ToString();
 		}
 		static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
 		{
@@ -230,5 +267,44 @@ namespace GroupMeAPI
 			else return source.Min(selector);
 		}
 
+		/// <summary>
+		/// Runs the provided <paramref name="actions"/> in parallel, up to the given maximum simultaneously.
+		/// </summary>
+		public static void PrintParallel(IEnumerable<Func<string>> actions, int parallelism)
+		{
+			//foreach(var action in actions) Console.WriteLine(action());
+			//return;
+
+			object _queueLock = new object();
+			Queue<Func<string>> actionQueue = new(actions);
+			Queue<Task<string>> runningQueue = new(parallelism);
+
+			void attemptQueue()
+			{
+				lock(_queueLock)
+				{
+					if (!actionQueue.Any()) return;
+					var action = actionQueue.Dequeue();
+					var task = Task.Run(() => {
+						var result = action();
+						attemptQueue();
+						return result;
+					});
+					runningQueue.Enqueue(task);
+				}
+			}
+
+			// queue
+			for(int i = 0; i < parallelism; i++)
+				attemptQueue();
+			// consume
+			while(runningQueue.Any())
+			{
+				var action = runningQueue.Dequeue();
+				action.Wait();
+				var result = action.Result;
+				Console.WriteLine(result);
+			}
+		}
 	}
 }

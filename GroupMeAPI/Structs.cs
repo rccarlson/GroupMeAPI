@@ -16,6 +16,8 @@ namespace GroupMeAPI
 			dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
 			return dateTime;
 		}
+		/// <summary> Converts the date component of a <see cref="DateTime"/> object to <see cref="string"/> </summary>
+		public static string DateToString(DateTime dateTime) => $"{dateTime.Month}/{dateTime.Day}/{dateTime.Year}";
 	}
 
 	public struct Meta
@@ -83,6 +85,8 @@ namespace GroupMeAPI
 			get
 			{
 				StringBuilder sb = new();
+				sb.Append(APIUtils.DateToString(CreatedAt));
+				sb.Append(" ");
 				sb.Append(name)
 					.Append(": ");
 				if (attachments.Any())
