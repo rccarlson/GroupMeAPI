@@ -51,9 +51,9 @@ namespace GroupMeAPI
 		{
 			var json = WebRequester.Get($"{BaseURL}/groups", new Dictionary<string, object>()
 			{
-				{ "token", token },
 				{ "page", page },
 				{ "per_page", per_page },
+				{ "token", token },
 			}).Response;
 			var result = Newtonsoft.Json.JsonConvert.DeserializeObject<Response<Group[]>>(json);
 			return result.response;
@@ -130,9 +130,9 @@ namespace GroupMeAPI
 			if (limit is < 1 or > 100) throw new ArgumentException($"{nameof(limit)} must be between 1 and 100");
 			return GetMessages(group_id, new Dictionary<string, object>()
 			{
-				{ "token", token },
 				{ "before_id", before_id },
 				{ "limit", limit },
+				{ "token", token },
 			});
 		}
 		public Message[] GetAllMessagesBefore(string group_id, string? before_id = null, int limit = -1)
@@ -151,9 +151,9 @@ namespace GroupMeAPI
 
 			return GetMessages(group_id, new Dictionary<string, object>()
 			{
-				{ "token", token },
 				{ "after_id", after_id },
 				{ "limit", limit },
+				{ "token", token },
 			});
 		}
 		public Message[] GetAllMessagesAfter(string group_id, string? before_id = null, int limit = -1)
