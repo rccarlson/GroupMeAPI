@@ -195,33 +195,6 @@ namespace GroupMeAPI
 			}
 			return result.ToString();
 		}
-		static string WriteLeaderboard<T>(string title, IEnumerable<(string, T)> leaderboard)
-		{
-			StringBuilder result = new();
-			var col1Width = leaderboard.Max(pair => pair.Item1.Length);
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-			var col2Width = leaderboard.Max(pair => pair.Item2?.ToString().Length ?? 0);
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-			Type[] padLeftTypes = new[] { typeof(int) };
-			result.AppendLine($"---{title}---");
-			foreach (var (user, score) in leaderboard)
-			{
-				StringBuilder sb = new();
-				sb.Append(user.PadLeft(col1Width));
-				sb.Append(": ");
-#pragma warning disable CS8602 // Dereference of a possibly null reference.
-				if (score is null)
-					sb.Append(' ', col2Width);
-				else if(padLeftTypes.Contains(typeof(T)))
-					sb.Append(score.ToString().PadLeft(col2Width));
-				else
-					sb.Append(score.ToString().PadRight(col2Width));
-#pragma warning restore CS8602 // Dereference of a possibly null reference.
-				result.AppendLine(sb.ToString());
-			}
-			result.AppendLine();
-			return result.ToString();
-		}
 		static string WriteList(string title, IEnumerable<string> list)
 		{
 			StringBuilder result = new();
@@ -230,24 +203,6 @@ namespace GroupMeAPI
 				result.AppendLine(item);
 			return result.ToString();
 		}
-		static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
-		{
-			// Unix timestamp is seconds past epoch
-			DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
-			dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
-			return dateTime;
-		}
-		public static TResult? SafeMax<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector, TResult defaultValue = default)
-		{
-			if (!source.Any()) return defaultValue;
-			else return source.Max(selector);
-		}
-		public static TResult SafeMin<TSource, TResult>(IEnumerable<TSource> source, Func<TSource, TResult> selector, TResult defaultValue = default)
-		{
-			if (!source.Any()) return defaultValue;
-			else return source.Min(selector);
-		}
-
 		/// <summary>
 		/// Runs the provided <paramref name="actions"/> in parallel, up to the given maximum simultaneously.
 		/// </summary>
