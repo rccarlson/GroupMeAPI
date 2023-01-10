@@ -196,6 +196,17 @@ namespace GroupMeAPI
 			return messages.DistinctBy(m => m.id).OrderByDescending(m => m.created_at).ToArray();
 		}
 
+		public static void SendBotMessage(string botID, string? text = null)
+		{
+			// new MessagePost { text = text, bot_id = botID }
+			var content = new Dictionary<string, object>()
+			{
+				{ "text", text},
+				{ "bot_id", botID}
+			};
+			WebRequester.Post($"{BaseURL}/bots/post", content);
+		}
+
 		#region FILE IO
 		static readonly System.Runtime.Serialization.Formatters.Binary.BinaryFormatter formatter = new();
 		public static Message[] GetMessagesFromFile(string file)
