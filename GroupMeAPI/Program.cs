@@ -84,6 +84,11 @@ namespace GroupMeAPI
 								messages.Count(m=>m.@event.data.options?.Any(opt => opt.voter_ids?.Contains(user.user_id)??false)??false)
 							, PadType.Left),
 					()=>LeaderboardByMessage("Most liked messages", group, messages, m => m.favorited_by.Length, 20),
+					()=>LeaderboardByUser("Most kicked from group", group, messages, (user, messages)=>
+							messages
+							.Where(m=>m.@event.data.removed_user.id.ToString() == user.user_id)
+							.Count()
+							,PadType.Left),
 				}
 				, parallelism);
 		}
