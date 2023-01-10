@@ -189,11 +189,11 @@ namespace GroupMeAPI
 			do
 			{
 				newMessages = messageGenerator(lastMessage);
-				if (newMessages is null) return messages.ToArray();
+				if (newMessages is null) break;
 				lastMessage = newMessages?.LastOrDefault().id;
 				messages.AddRange(newMessages);
-			} while (newMessages.Any() && (limit < 0 || messages.Count < limit));
-			return messages.ToArray();
+			} while (newMessages.Any() && (limit < 0 || messages.Count == limit));
+			return messages.DistinctBy(m => m.id).OrderByDescending(m => m.created_at).ToArray();
 		}
 
 		#region FILE IO
