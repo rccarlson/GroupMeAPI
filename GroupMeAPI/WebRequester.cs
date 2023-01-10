@@ -1,7 +1,9 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -14,21 +16,19 @@ namespace GroupMeAPI
 		private static DateTime _lastQueryTime = DateTime.MinValue;
 		const int MinMSBtwQueries = 250;
 
-		internal static (HttpStatusCode StatusCode, string Response) Get(string url, Dictionary<string, object>? arguments = null)
+		internal static (HttpStatusCode StatusCode, string? Response) Get(string url, Dictionary<string, object>? arguments = null)
+			=> PerformWebRequest(url, arguments, (client, url) => client.GetAsync(url));
+
+		internal static (HttpStatusCode StatusCode, string? Response) Post<T>(string url, T value, Dictionary<string, object>? arguments = null)
+			=> PerformWebRequest(url, arguments, (client, url) => client.PostAsJsonAsync(url, value));
+
+		private static (HttpStatusCode StatusCode, string? Response) PerformWebRequest(string url, Dictionary<string, object>? arguments, Func<HttpClient, string, Task<HttpResponseMessage>> action)
 		{
 			int errors = 0;
 			beginning:
 
 			lock (_webLock)
 			{
-				var now = DateTime.Now;
-				var delta = now - _lastQueryTime;
-				if (delta < TimeSpan.FromMilliseconds(MinMSBtwQueries))
-				{
-					var remaining = MinMSBtwQueries - delta.TotalMilliseconds;
-					Thread.Sleep((int)remaining);
-				}
-
 				using var client = new HttpClient();
 				UriBuilder builder = new(url);
 				if (arguments is not null)
@@ -37,7 +37,7 @@ namespace GroupMeAPI
 					builder.Query = string.Join("&", nonBlankArgs.Select(kv => $"{kv.Key}={kv.Value}"));
 				}
 				var resultUrl = builder.ToString();
-				var result = client.GetAsync(resultUrl).Result;
+				var result = action(client, resultUrl).Result;
 
 				_lastQueryTime = DateTime.Now;
 
@@ -45,10 +45,11 @@ namespace GroupMeAPI
 				{
 					case HttpStatusCode.OK:
 					case HttpStatusCode.NotModified:
+					case HttpStatusCode.Accepted:
 					case (HttpStatusCode)418:
 						return (result.StatusCode, result.Content.ReadAsStringAsync().Result);
 					case HttpStatusCode.GatewayTimeout:
-						if(errors < 3)
+						if (errors < 3)
 						{
 							errors++;
 							goto beginning;
@@ -61,9 +62,7 @@ namespace GroupMeAPI
 						_ = 0;
 						break;
 				}
-				_ = 0;
 				throw new NotImplementedException(result.StatusCode.ToString());
-
 			}
 		}
 	}
