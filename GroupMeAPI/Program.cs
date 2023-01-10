@@ -129,7 +129,7 @@ namespace GroupMeAPI
 				return new object[]
 				{
 					$"#{i+1}",
-					APIUtils.DateToString(m.CreatedAt),
+					Utility.DateToString(m.CreatedAt),
 					string.IsNullOrWhiteSpace(sender.name) ? "<User not in group>" : sender.name,
 					score(m)?.ToString() ?? string.Empty,
 					m.text
