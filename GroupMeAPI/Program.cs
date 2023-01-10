@@ -36,7 +36,7 @@ namespace GroupMeAPI
 			PrintParallel(
 				new Func<string>[]
 				{
-					()=>WriteTable("User IDs", group.members.OrderBy(m=>m.name).Select(member => new string[] { member.nickname, member.name, member.user_id })),
+					()=>WriteTable("User IDs", group.members.OrderBy(m=>m.name).Select(member => new string[] { member.name, member.user_id, member.nickname, })),
 					()=>$"--TOTALS--",
 					()=>$"All messages: {messages.Length}",
 					()=>$"System Messages: {messages.Where(msg => msg.system).Count()}",
