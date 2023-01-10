@@ -156,12 +156,12 @@ namespace GroupMeAPI
 				{ "token", token },
 			});
 		}
-		public Message[] GetAllMessagesAfter(string group_id, string? before_id = null, int limit = -1)
+		public Message[] GetAllMessagesAfter(string group_id, string? after_id = null, int limit = -1)
 		{
 			var pullSize = limit > 0 ? Math.Min(100, limit) : 100;
 			return BuildMessageList(
 				last => GetMessagesAfter(group_id, last, pullSize).messages,
-				before_id,
+				after_id,
 				limit
 			);
 		}
