@@ -5,32 +5,92 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Threading.Tasks;
+using static GroupMeAPI.Utility;
 
 namespace GroupMeAPI
 {
-	internal class SaveFile
+	public class SaveFile
 	{
 		const string Version = "1.0.0";
+		const int pullLimit = 100;
 
+		public string? GroupID { get; init; }
 		public Message[] Messages { get; set; }
-		public Group Group { get; set; }
+		public Group? Group { get; set; }
+		public DateTime? LastUpdated { get; private set; }
 
-		public SaveFile Load(string filename)
+		public Dictionary<string, object> Properties { get; set; }
+
+		private API api;
+
+		private SaveFile(API api) {
+			this.api = api;
+		}
+		private SaveFile(string groupID, API api) : this(api)
 		{
-			if(!File.Exists(filename)) return new();
+			GroupID = groupID;
+			Messages = Array.Empty<Message>();
+			Group = null;
+		}
+
+		public void Update()
+		{
+			UpdateGroup();
+			UpdateMessages();
+			LastUpdated = DateTime.Now;
+		}
+		private void UpdateMessages()
+		{
+			if (GroupID is null) throw new ArgumentNullException(nameof(GroupID));
+
+			IEnumerable<Message> allMessages = Messages;
+
+			// Get messages predating list
+			var minID = allMessages.Min(m => m.id);
+			var olderMessages = api.GetAllMessagesBefore(GroupID, minID, pullLimit);
+			allMessages = allMessages.Concat(olderMessages);
+
+			// Get messages after list
+			var maxID = allMessages.Max(m => m.id);
+			var newerMessages = api.GetAllMessagesAfter(GroupID, maxID, pullLimit);
+			allMessages = newerMessages.Concat(olderMessages);
+
+			Messages = allMessages
+				.DistinctBy(m => m.id)
+				.OrderByDescending(m => m.created_at)
+				.ToArray();
+		}
+		private void UpdateGroup()
+		{
+			if (GroupID is null) throw new ArgumentNullException(nameof(GroupID));
+
+			Group = api.GetGroup(GroupID);
+		}
+
+		public static SaveFile Load(string filename, string groupID, API api)
+		{
+			if(!File.Exists(filename)) return new(groupID, api);
 
 			using Stream fileStream = File.OpenRead(filename);
 			using BinaryReader reader = new(fileStream);
 			var fileVersion = reader.ReadString();
-			if (fileVersion != Version) return new(); // Do not attempt to load files from old versions
+			if (fileVersion != Version) return new(groupID, api); // Do not attempt to load files from old versions
 
-			SaveFile result = new()
+			try
 			{
-				Messages = ReadArray<Message>(reader),
-				Group = ReadObject<Group>(reader),
-			};
+				SaveFile result = new(api)
+				{
+					GroupID = ReadObject<string>(reader),
+					Messages = ReadArray<Message>(reader) ?? Array.Empty<Message>(),
+					Group = ReadObject<Group>(reader),
+					LastUpdated = ReadObject<DateTime>(reader),
+				};
+				return result;
+			}catch(EndOfStreamException ex)
+			{
+				return new(groupID, api);
+			}
 
-			return result;
 		}
 
 		public void Save(string filename)
@@ -39,26 +99,35 @@ namespace GroupMeAPI
 			using BinaryWriter writer = new(fileStream);
 			writer.Write(Version);
 
+			WriteObject(GroupID, writer);
 			WriteArray(Messages, writer);
 			WriteObject(Group, writer);
+			WriteObject(LastUpdated, writer);
 
 		}
 
-		private static T ReadObject<T>(BinaryReader reader)
+		#region IO HELPERS
+		private static T? ReadObject<T>(BinaryReader reader)
 		{
+			var isNull = reader.ReadBoolean();
+			if (isNull) return default;
 			var binary = ReadByteList(reader);
 			return DeserializeFromBytes<T>(binary);
 		}
-		private static void WriteObject<T>(T item, BinaryWriter writer)
+		private static void WriteObject<T>(T? item, BinaryWriter writer)
 		{
+			writer.Write(item is null);
+			if (item is null) return;
 			var binary = SerializeToBytes(item);
 			WriteByteList(binary, writer);
 		}
 
-		private static T[] ReadArray<T>(BinaryReader reader)
+		private static T?[]? ReadArray<T>(BinaryReader reader)
 		{
+			var isNull = reader.ReadBoolean();
+			if (isNull) return default;
 			var len = reader.ReadInt32();
-			T[] result = new T[len];
+			T?[] result = new T[len];
 			for(int i=0;i<len; i++)
 			{
 				result[i] = ReadObject<T>(reader);
@@ -67,6 +136,8 @@ namespace GroupMeAPI
 		}
 		private static void WriteArray<T>(IEnumerable<T> values, BinaryWriter writer)
 		{
+			writer.Write(values is null);
+			if (values is null) return;
 			var arr = values.ToArray();
 			writer.Write(arr.Length);
 			foreach (var item in arr)
@@ -105,5 +176,6 @@ namespace GroupMeAPI
 			return (T)formatter.Deserialize(stream);
 #pragma warning restore SYSLIB0011 // Type or member is obsolete
 		}
+		#endregion IO HELPERS
 	}
 }

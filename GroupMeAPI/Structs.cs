@@ -25,6 +25,7 @@ namespace GroupMeAPI
 		public int code;
 	}
 
+	[Serializable]
 	[DebuggerDisplay("{name,nq}")]
 	public struct Group
 	{
@@ -48,6 +49,7 @@ namespace GroupMeAPI
 		// locations, visibility, category_ids
 	}
 
+	[Serializable]
 	public struct GroupMessages
 	{
 		public int count;
@@ -56,6 +58,7 @@ namespace GroupMeAPI
 		public MessagePreview preview;
 	}
 
+	[Serializable]
 	public struct MessagePreview
 	{
 		public string nickname, text, image_url;
@@ -83,10 +86,10 @@ namespace GroupMeAPI
 		{
 			// special case for image with no text
 			if (attachments.Length == 1 && attachments.First().IsImage && string.IsNullOrWhiteSpace(text))
-				return $"{APIUtils.DateToString(CreatedAt)} {name}: {attachments.First().url}";
+				return $"{Utility.DateToString(CreatedAt)} {name}: {attachments.First().url}";
 
 			StringBuilder sb = new();
-			sb.Append(APIUtils.DateToString(CreatedAt))
+			sb.Append(Utility.DateToString(CreatedAt))
 				.Append(" ")
 				.Append(name)
 				.Append(": ");
@@ -101,7 +104,7 @@ namespace GroupMeAPI
 		public MessageAttachment[] attachments;
 		public string avatar_url;
 		public long created_at;
-		public DateTime CreatedAt => APIUtils.UnixTimeStampToDateTime(created_at);
+		public DateTime CreatedAt => Utility.UnixTimeStampToDateTime(created_at);
 		public string[] favorited_by;
 		public string group_id, id, name, sender_id, sender_type, source_guid;
 		public bool system;
@@ -171,6 +174,9 @@ namespace GroupMeAPI
 
 		// poll.finished
 		public PollOption[] options;
+
+		// bot.add
+		public string bot;
 	}
 	[Serializable]
 	public struct CalendarEvent
@@ -197,6 +203,7 @@ namespace GroupMeAPI
 		public int pack_id, pack_index;
 	}
 
+	[Serializable]
 	[DebuggerDisplay("{name,nq} (\"{nickname,nq}\")")]
 	public struct GroupMember
 	{
