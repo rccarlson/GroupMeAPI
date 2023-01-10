@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.4.33122.133
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GroupMeAPI", "GroupMeAPI\GroupMeAPI.csproj", "{13828893-36B4-4E7F-9273-2416ADFD8413}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GroupMeAPI", "GroupMeAPI\GroupMeAPI.csproj", "{13828893-36B4-4E7F-9273-2416ADFD8413}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TSKBot", "TSKBot\TSKBot.csproj", "{BDE25E08-5620-4B56-937B-ECC9A8A5B511}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{13828893-36B4-4E7F-9273-2416ADFD8413}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{13828893-36B4-4E7F-9273-2416ADFD8413}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{13828893-36B4-4E7F-9273-2416ADFD8413}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BDE25E08-5620-4B56-937B-ECC9A8A5B511}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BDE25E08-5620-4B56-937B-ECC9A8A5B511}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BDE25E08-5620-4B56-937B-ECC9A8A5B511}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BDE25E08-5620-4B56-937B-ECC9A8A5B511}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
