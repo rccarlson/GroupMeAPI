@@ -196,15 +196,58 @@ namespace GroupMeAPI
 			return messages.DistinctBy(m => m.id).OrderByDescending(m => m.created_at).ToArray();
 		}
 
-		public static void SendBotMessage(string botID, string? text = null)
+		/// <summary>
+		/// Send a message as a bot
+		/// <para/>
+		/// If <paramref name="replyToMessageID"/> is included, the message will be formatted as a reply
+		/// <para/>
+		/// If <paramref name="mentionIds"/> is included, <paramref name="text"/> will have all instances of {0} replaced by the respective mentionIds
+		/// </summary>
+		public static void SendBotMessage(Group group, string botID, string? text = null, string? replyToMessageID = null, IEnumerable<string>? mentionIds = null)
 		{
 			// new MessagePost { text = text, bot_id = botID }
+			List<Dictionary<string, object>> attachments = new();
+			if(replyToMessageID is not null)
+			{
+				attachments.Add(new()
+				{
+						{"type","reply" },
+						{"reply_id", replyToMessageID },
+						{"base_reply_id", replyToMessageID },
+				});
+			}
+			if(mentionIds is not null && text is not null)
+			{
+				var ids = mentionIds.ToArray();
+				var finalIDs = new List<string>();
+				var loci = new List<int[]>();
+				for(int i = 0; i < ids.Length; i++)
+				{
+					var mentionedUser = group.members.FirstOrDefault(m => m.user_id == ids[i]);
+					if (string.IsNullOrWhiteSpace(mentionedUser.name)) continue;
+					string toReplace = $"{{{i}}}";
+					if (!text.Contains(toReplace)) continue;
+					var mentionText = "@" + mentionedUser.nickname;
+					loci.Add(new[] { text.IndexOf(toReplace), mentionText.Length });
+					finalIDs.Add(mentionedUser.user_id);
+					text = text.Replace(toReplace, mentionText);
+				}
+
+				attachments.Add(new()
+				{
+						{"type","mentions" },
+						{"user_ids", finalIDs.ToArray() },
+						{"loci", loci.ToArray() },
+				});
+			}
 			var content = new Dictionary<string, object>()
 			{
-				{ "text", text},
-				{ "bot_id", botID}
+				{ "text", text ?? string.Empty },
+				{ "bot_id", botID }
 			};
-			WebRequester.Post($"{BaseURL}/bots/post", content);
+			if(attachments.Any()) content.Add("attachments", attachments.ToArray());
+			var response = WebRequester.Post($"{BaseURL}/bots/post", content);
+			var result = Newtonsoft.Json.JsonConvert.DeserializeObject<Dictionary<string,string>>(response.Response);
 		}
 
 		#region FILE IO
