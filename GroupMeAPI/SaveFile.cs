@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -12,7 +13,6 @@ namespace GroupMeAPI
 	public class SaveFile
 	{
 		const string Version = "1.0.0";
-		const int pullLimit = 100;
 
 		public string? GroupID { get; init; }
 		public Message[] Messages { get; set; }
@@ -26,39 +26,77 @@ namespace GroupMeAPI
 		private SaveFile(API api) {
 			this.api = api;
 		}
-		private SaveFile(string groupID, API api) : this(api)
+		private SaveFile(string groupID, API api, bool runUpdate) : this(api)
 		{
 			GroupID = groupID;
 			Messages = Array.Empty<Message>();
 			Group = null;
+			if(runUpdate) Update(searchOlderMessages: true);
 		}
 
-		public void Update()
+		/// <summary>
+		/// Fetches new data for the <see cref="SaveFile"/>
+		/// </summary>
+		/// <param name="forceUpdateMessages"> Number of messages to fetch, regardless of when they were pulled </param>
+		/// <param name="searchOlderMessages">If true, will try to populate messages at the earliest end of history</param>
+		public Message[] Update(int forceUpdateMessages = 200, bool searchOlderMessages = false)
 		{
 			UpdateGroup();
-			UpdateMessages();
+			var newMessages = UpdateMessages(forceUpdateMessages, searchOlderMessages);
 			LastUpdated = DateTime.Now;
+			return newMessages;
 		}
-		private void UpdateMessages()
+
+		private Message[] UpdateMessages(int forceUpdateMessages = 200, bool searchOlderMessages = false)
 		{
 			if (GroupID is null) throw new ArgumentNullException(nameof(GroupID));
 
-			IEnumerable<Message> allMessages = Messages;
+			IEnumerable<Message> originalMessages = Messages;
 
-			// Get messages predating list
-			var minID = allMessages.Min(m => m.id);
-			var olderMessages = api.GetAllMessagesBefore(GroupID, minID, pullLimit);
-			allMessages = allMessages.Concat(olderMessages);
+			Message[] olderMessages = Array.Empty<Message>();
+			if (searchOlderMessages)
+			{
+				// Get messages predating list
+				Stopwatch oldMsgSw = Stopwatch.StartNew();
+				var minID = originalMessages.Min(m => m.id);
+				olderMessages = api.GetAllMessagesBefore(GroupID, minID);
+				oldMsgSw.Stop();
+				//Console.WriteLine($"Pulled {olderMessages.Length} old messages in {oldMsgSw.Elapsed}");
+			}
 
 			// Get messages after list
-			var maxID = allMessages.Max(m => m.id);
-			var newerMessages = api.GetAllMessagesAfter(GroupID, maxID, pullLimit);
-			allMessages = newerMessages.Concat(olderMessages);
+			Stopwatch newMsgSw = Stopwatch.StartNew();
+			var maxID = originalMessages.Concat(olderMessages).Max(m => m.id);
+			var newerMessages = api.GetAllMessagesAfter(GroupID, maxID);
+			newMsgSw.Stop();
+			//Console.WriteLine($"Pulled {newerMessages.Length} new messages in {newMsgSw.Elapsed}");
 
-			Messages = allMessages
-				.DistinctBy(m => m.id)
-				.OrderByDescending(m => m.created_at)
+			// force update
+			Message[] forcedUpdateMessages = Array.Empty<Message>();
+			if (forceUpdateMessages > 0)
+			{
+				Stopwatch forcedMsgSw = Stopwatch.StartNew();
+				var messagesToPull = forceUpdateMessages - newerMessages.Length;
+				var oldestNewMessage = newerMessages.Min(m => m.id);
+				forcedUpdateMessages = api.GetAllMessagesBefore(GroupID, oldestNewMessage, messagesToPull);
+				forcedMsgSw.Stop();
+				//Console.WriteLine($"Pulled {forcedUpdateMessages.Length} updated messages in {forcedMsgSw.Elapsed}");
+			}
+
+			Messages = 
+				originalMessages // start with original messages
+				.Concat(olderMessages) // add old messages pulled
+				.Concat(newerMessages) // add new messages pulled
+				.ExceptBy(forcedUpdateMessages.Select(m=>m.id), m=>m.id) // remove messages to be replaced
+				.Concat(forcedUpdateMessages) // add messages that were force added
+				.DistinctBy(m => m.id) // remove duplicates that may have snuck in
+				.OrderByDescending(m => m.created_at) // order everything by created date
 				.ToArray();
+
+			return newerMessages;
+				//.Concat(forcedUpdateMessages)
+				//.OrderByDescending(m => m.id)
+				//.ToArray();
 		}
 		private void UpdateGroup()
 		{
@@ -69,12 +107,12 @@ namespace GroupMeAPI
 
 		public static SaveFile Load(string filename, string groupID, API api)
 		{
-			if(!File.Exists(filename)) return new(groupID, api);
+			if(!File.Exists(filename)) return new(groupID, api, true);
 
 			using Stream fileStream = File.OpenRead(filename);
 			using BinaryReader reader = new(fileStream);
 			var fileVersion = reader.ReadString();
-			if (fileVersion != Version) return new(groupID, api); // Do not attempt to load files from old versions
+			if (fileVersion != Version) return new SaveFile(groupID, api, true); // Do not attempt to load files from old versions
 
 			try
 			{
@@ -88,7 +126,7 @@ namespace GroupMeAPI
 				return result;
 			}catch(EndOfStreamException ex)
 			{
-				return new(groupID, api);
+				return new(groupID, api, true);
 			}
 
 		}
