@@ -37,7 +37,8 @@ namespace GroupMeAPI
 					builder.Query = string.Join("&", nonBlankArgs.Select(kv => $"{kv.Key}={kv.Value}"));
 				}
 				var resultUrl = builder.ToString();
-				var result = action(client, resultUrl).Result;
+				var actionTask = action(client, resultUrl);
+				var result = actionTask.Result;
 
 				_lastQueryTime = DateTime.Now;
 
