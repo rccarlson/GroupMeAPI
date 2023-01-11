@@ -124,7 +124,7 @@ namespace GroupMeAPI
 				return result.response;
 			}
 		}
-		public MessageResult GetMessagesBefore(string group_id, string? before_id, int limit)
+		internal MessageResult GetMessagesBefore(string group_id, string? before_id, int limit)
 		{
 			if (before_id is not null && !IsNumeric(before_id)) throw new ArgumentException($"{nameof(before_id)} '{before_id}' contained non-numeric character");
 			if (limit is < 1 or > 100) throw new ArgumentException($"{nameof(limit)} must be between 1 and 100");
@@ -144,7 +144,7 @@ namespace GroupMeAPI
 				limit
 			);
 		}
-		public MessageResult GetMessagesAfter(string group_id, string after_id, int limit)
+		internal MessageResult GetMessagesAfter(string group_id, string after_id, int limit)
 		{
 			if (after_id is not null && !IsNumeric(after_id)) throw new ArgumentException($"{nameof(after_id)} '{after_id}' contained non-numeric character");
 			if (limit is < 1 or > 100) throw new ArgumentException($"{nameof(limit)} must be between 1 and 100");
