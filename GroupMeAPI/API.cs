@@ -186,13 +186,20 @@ namespace GroupMeAPI
 			List<Message> messages = new();
 			var lastMessage = seed;
 			Message[] newMessages;
+			int count = 0;
 			do
 			{
 				newMessages = messageGenerator(lastMessage);
 				if (newMessages is null) break;
 				lastMessage = newMessages?.LastOrDefault().id;
 				messages.AddRange(newMessages);
-			} while (newMessages.Any() && (limit < 0 || messages.Count == limit));
+				if(limit > 0) // can apply limits
+				{
+					if(newMessages.Length < limit) break; // GroupMe returned less than requested. All out of incoming messages
+					if (messages.Count >= limit) break; // All requested messages have been received
+				}
+				count++;
+			} while (newMessages.Any());
 			return messages.DistinctBy(m => m.id).OrderByDescending(m => m.created_at).ToArray();
 		}
 
