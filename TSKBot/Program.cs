@@ -30,7 +30,8 @@ namespace TSKBot
 			if (lastUpdated is null) Console.WriteLine("Never updated");
 			else Console.WriteLine($"Last updated {lastUpdated}");
 
-			//var idToUser = file.Group?.members.ToDictionary(m => m.user_id, m => m);
+			var idToUser = file.Group?.members.ToDictionary(m => m.user_id, m => m);
+			var userToID = file.Group?.members.ToDictionary(m => m.name, m => m.user_id);
 			//var scores = CalculateSocialCreditScores(file);
 
 			Stopwatch runtime = Stopwatch.StartNew();
