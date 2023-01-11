@@ -12,23 +12,54 @@ namespace GroupMeAPI
 		{
 			var api = new API();
 
-			WriteList("Groups", api.GetGroups().Select(g=>$"{g.name}: {g.id}").Take(5));
+			Console.WriteLine(WriteList("Groups", api.GetGroups().Select(g=>$"{g.name}: {g.id}").Take(5)));
 
 			var mostRecentGroup = api.GetGroups().First().group_id;
+			var filename = $"{mostRecentGroup}{Extension}";
+
+			var saveFile = SaveFile.Load($"{BotTestingGroupID}{Extension}2", BotTestingGroupID, api);
+			saveFile.Update();
+			saveFile.Save($"{BotTestingGroupID}{Extension}2");
 
 			var allMessages = api.UpdateFile($"{mostRecentGroup}{Extension}", mostRecentGroup);
 			var group = api.GetGroup(mostRecentGroup);
+
+			var mentions = allMessages
+				.Where(m => m.attachments.Any(a => a.IsMention))
+				.Where(m=>m.attachments.First(a=>a.IsMention).user_ids.Length > 1)
+				.Select(m => (m.@event.type, m.@event, API.GetMessageProceeding(allMessages, m).id))
+				.ToArray();
 
 			var distinctEventTypes = allMessages
 				.DistinctBy(m => m.@event.type)
 				.Where(m=>m.@event.type is not null)
 				.OrderBy(m=>m.@event.type)
-				.Skip(4)
 				.Select(m=>(m.@event.type, m.@event, API.GetMessageProceeding(allMessages, m).id))
 				.ToList();
 
 			PrintStats(group, allMessages, 6);
 
+			//var parallelisms = new[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+			//var testsPerParallelism = 4;
+			//Dictionary<int, List<TimeSpan>> results = new();
+			//foreach(var test in parallelisms)
+			//{
+			//	results[test] = new();
+			//	for(int i=0;i<testsPerParallelism;i++)
+			//	{
+			//		var sw = Stopwatch.StartNew();
+			//		PrintStats(group, allMessages, test);
+			//		sw.Stop();
+			//		results[test].Add(sw.Elapsed);
+			//	}
+			//}
+			//foreach(var (k,v) in results)
+			//{
+			//	foreach(var value in v)
+			//	{
+			//		Console.WriteLine($"{k}\t{value.TotalMilliseconds}");
+			//	}
+			//}
 		}
 
 		static void PrintStats(Group group, Message[] messages, int parallelism)
@@ -64,7 +95,7 @@ namespace GroupMeAPI
 							 return MathF.Round(likesReceived/sentByUser.Length,3);
 						 }, PadType.Right),
 					()=>LeaderboardByUser("Longest inactive", group, messages, (user, messages) =>
-								(int)SafeMin(messages.Where(m => RepresentsActivity(user, m)), m => (DateTime.Now - m.CreatedAt).TotalDays)
+								(int)messages.Where(m => RepresentsActivity(user, m)).SafeMin(m => (DateTime.Now - m.CreatedAt).TotalDays)
 							, PadType.Left),
 					()=>LeaderboardByUser("Most mentioned", group, messages, (user, messages) =>
 								messages.Count(m => m.attachments.Any(a => a.type == "mentions" && a.user_ids.Contains(user.user_id)))
@@ -84,6 +115,16 @@ namespace GroupMeAPI
 								messages.Count(m=>m.@event.data.options?.Any(opt => opt.voter_ids?.Contains(user.user_id)??false)??false)
 							, PadType.Left),
 					()=>LeaderboardByMessage("Most liked messages", group, messages, m => m.favorited_by.Length, 20),
+					()=>{
+						return $"Kedrick's golden four\n" +
+						string.Join("\n",
+							messages
+							.OrderBy(m=>m.created_at)
+							.Where(m=>m.favorited_by?.Contains("32019195")??false)
+							.Skip(996).Take(4)
+							.Select(m=>m.ToString().Replace("\n"," "))) +
+							Environment.NewLine;
+						},
 					()=>LeaderboardByUser("Most kicked from group", group, messages, (user, messages)=>
 							messages
 							.Where(m=>m.@event.data.removed_user.id.ToString() == user.user_id)

@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace GroupMeAPI
 {
-	internal static class Utility
+	public static class Utility
 	{
 		public static DateTime UnixTimeStampToDateTime(long unixTimeStamp)
 		{
@@ -39,5 +39,47 @@ namespace GroupMeAPI
 			else return source.Min(selector);
 		}
 
+
+		/// <summary>
+		/// Runs the provided <paramref name="actions"/> in parallel, up to the given maximum simultaneously.
+		/// </summary>
+		public static string ParallelStringBuild(IEnumerable<Func<string>> actions, int parallelism)
+		{
+			//foreach(var action in actions) Console.WriteLine(action());
+			//return;
+
+			object _queueLock = new object();
+			Queue<Func<string>> actionQueue = new(actions);
+			Queue<Task<string>> runningQueue = new(parallelism);
+
+			void attemptQueue()
+			{
+				lock (_queueLock)
+				{
+					if (!actionQueue.Any()) return;
+					var action = actionQueue.Dequeue();
+					var task = Task.Run(() => {
+						var result = action();
+						attemptQueue();
+						return result;
+					});
+					runningQueue.Enqueue(task);
+				}
+			}
+
+			// queue
+			for (int i = 0; i < parallelism; i++)
+				attemptQueue();
+			// consume
+			StringBuilder sb = new();
+			while (runningQueue.Any())
+			{
+				var action = runningQueue.Dequeue();
+				action.Wait();
+				var result = action.Result;
+				sb.AppendLine(result);
+			}
+			return sb.ToString();
+		}
 	}
 }
